@@ -499,6 +499,8 @@ void clearMarks(int view, int line);
 int getPrevUnmarkedLine(int view, int startLine, int markMask);
 int getNextUnmarkedLine(int view, int startLine, int markMask);
 
+void hideUnmarked(int view, int markMask);
+
 bool isAdjacentAnnotation(int view, int line, bool down);
 bool isVisibleAdjacentAnnotation(int view, int line, bool down);
 

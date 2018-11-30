@@ -1524,8 +1524,21 @@ void alignDiffs(const CompareList_t::iterator& cmpPair)
 {
 	const AlignmentInfo_t& alignmentInfo = cmpPair->alignmentInfo;
 
-	CallScintilla(MAIN_VIEW, SCI_FOLDALL, SC_FOLDACTION_EXPAND, 0);
-	CallScintilla(SUB_VIEW, SCI_FOLDALL, SC_FOLDACTION_EXPAND, 0);
+	ScopedIncrementer incr(notificationsLock);
+
+	CallScintilla(MAIN_VIEW, SCI_ANNOTATIONCLEARALL, 0, 0);
+	CallScintilla(SUB_VIEW, SCI_ANNOTATIONCLEARALL, 0, 0);
+
+	if (Settings.HideMatches)
+	{
+		hideUnmarked(MAIN_VIEW, MARKER_MASK_LINE);
+		hideUnmarked(SUB_VIEW, MARKER_MASK_LINE);
+	}
+	else
+	{
+		CallScintilla(MAIN_VIEW, SCI_FOLDALL, SC_FOLDACTION_EXPAND, 0);
+		CallScintilla(SUB_VIEW, SCI_FOLDALL, SC_FOLDACTION_EXPAND, 0);
+	}
 
 	int off = 0;
 	{
@@ -2045,7 +2058,7 @@ void compare(bool selectionCompare = false, bool findUniqueMode = false, bool au
 				goToFirst = true;
 
 				// Move the view so the Notepad++ line number area width is updated now and we avoid getting
-				// second alignment request on scintilla paint notification
+				// second alignment request on Scintilla paint notification
 				for (const AlignmentPair& alignment : cmpPair->alignmentInfo)
 				{
 					if (alignment.main.diffMask)
@@ -2293,6 +2306,19 @@ void DetectMoves()
 }
 
 
+void HideMatches()
+{
+	Settings.HideMatches = !Settings.HideMatches;
+	::SendMessage(nppData._nppHandle, NPPM_SETMENUITEMCHECK, funcItem[CMD_HIDE_MATCHES]._cmdID,
+			(LPARAM)Settings.HideMatches);
+	Settings.markAsDirty();
+
+	CompareList_t::iterator	cmpPair = getCompare(getCurrentBuffId());
+	if (cmpPair != compareList.end())
+		alignDiffs(cmpPair);
+}
+
+
 void AutoRecompare()
 {
 	Settings.RecompareOnChange = !Settings.RecompareOnChange;
@@ -2498,6 +2524,9 @@ void createMenu()
 
 	_tcscpy_s(funcItem[CMD_DETECT_MOVES]._itemName, nbChar, TEXT("Detect Moves"));
 	funcItem[CMD_DETECT_MOVES]._pFunc = DetectMoves;
+
+	_tcscpy_s(funcItem[CMD_HIDE_MATCHES]._itemName, nbChar, TEXT("Hide Matches (Show Only Diffs)"));
+	funcItem[CMD_HIDE_MATCHES]._pFunc = HideMatches;
 
 	_tcscpy_s(funcItem[CMD_NAV_BAR]._itemName, nbChar, TEXT("Navigation Bar"));
 	funcItem[CMD_NAV_BAR]._pFunc = ViewNavigationBar;
@@ -2747,6 +2776,8 @@ void onNppReady()
 			(LPARAM)Settings.IgnoreCase);
 	::SendMessage(nppData._nppHandle, NPPM_SETMENUITEMCHECK, funcItem[CMD_DETECT_MOVES]._cmdID,
 			(LPARAM)Settings.DetectMoves);
+	::SendMessage(nppData._nppHandle, NPPM_SETMENUITEMCHECK, funcItem[CMD_HIDE_MATCHES]._cmdID,
+			(LPARAM)Settings.HideMatches);
 	::SendMessage(nppData._nppHandle, NPPM_SETMENUITEMCHECK, funcItem[CMD_NAV_BAR]._cmdID,
 			(LPARAM)Settings.UseNavBar);
 
